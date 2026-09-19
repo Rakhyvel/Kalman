@@ -37,3 +37,33 @@ impl Filter for MovingAverage {
         self.estimate
     }
 }
+
+pub struct RollingAverage<const N: usize> {
+    estimates: [f64; N],
+    count: usize,
+    idx: usize,
+    sum: f64,
+}
+
+impl<const N: usize> RollingAverage<N> {
+    pub fn new() -> Self {
+        Self {
+            estimates: [0.0; N],
+            count: 0,
+            idx: 0,
+            sum: 0.0,
+        }
+    }
+}
+
+impl<const N: usize> Filter for RollingAverage<N> {
+    fn update(&mut self, measurement: f64) -> f64 {
+        self.sum -= self.estimates[self.idx];
+        self.estimates[self.idx] = measurement;
+        self.sum += measurement;
+        self.idx = (self.idx + 1) % N;
+        self.count = (self.count + 1).min(N);
+
+        self.sum / self.count as f64
+    }
+}
