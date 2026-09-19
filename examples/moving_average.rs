@@ -1,21 +1,23 @@
 use kalman::filter::{Filter, MovingAverage};
 use kalman::sensor::{GaussianSensor, Sensor};
-use kalman::state::{ConstantVelocity, State};
+use kalman::state::{Oscillating, State};
 
 use kalman::plot::{Sample, SampleLog};
 
-const STD_DEV: f64 = 0.9;
+const STD_DEV: f64 = 0.1;
 const SEED: u64 = 67;
 
-const ALPHA: f64 = 0.29;
+const ALPHA: f64 = 0.435;
 const INITIAL_ESTIMATE: f64 = 0.0;
 
 const DT: f64 = 0.1;
 
 fn main() {
-    let mut state = ConstantVelocity {
-        velocity: 1.0,
-        position: 0.0,
+    let mut state = Oscillating {
+        amplitude: 1.0,
+        angular_frequency: 1.0,
+        phase: 0.0,
+        t: 0.0,
     };
 
     let mut sensor = GaussianSensor::new(STD_DEV, SEED).unwrap();
@@ -42,5 +44,6 @@ fn main() {
         state.step(DT);
     }
 
+    println!("rms: {}", samples.rms());
     samples.save();
 }

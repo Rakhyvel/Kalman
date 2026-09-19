@@ -1,6 +1,5 @@
 use serde::Serialize;
-use std::fs::create_dir_all;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Default)]
 pub struct SampleLog {
@@ -24,6 +23,18 @@ impl SampleLog {
         self.samples.push(sample);
     }
 
+    pub fn rms(&mut self) -> f64 {
+        if self.samples.is_empty() {
+            return 0.0;
+        }
+
+        let mut rms: f64 = 0.0;
+        for sample in &self.samples {
+            rms += sample.squared_error();
+        }
+        (rms / self.samples.len() as f64).sqrt()
+    }
+
     pub fn save(&self) {
         if self.samples.is_empty() {
             println!("Samples empty, not saving a CSV");
@@ -36,5 +47,11 @@ impl SampleLog {
             writer.serialize(sample).unwrap();
         }
         writer.flush().unwrap()
+    }
+}
+
+impl Sample {
+    pub fn squared_error(&self) -> f64 {
+        (self.estimate - self.truth).powi(2)
     }
 }
