@@ -12,6 +12,7 @@ pub struct Sample {
     pub truth: f64,
     pub measurement: f64,
     pub estimate: f64,
+    pub covariance: f64,
 }
 
 impl SampleLog {

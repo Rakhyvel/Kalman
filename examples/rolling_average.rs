@@ -12,7 +12,7 @@ const DT: f64 = 0.1;
 fn main() {
     let mut state = Oscillating {
         amplitude: 1.0,
-        angular_frequency: 1.0,
+        angular_frequency: 0.01,
         phase: 0.0,
         t: 0.0,
     };
@@ -36,6 +36,7 @@ fn main() {
             truth,
             measurement,
             estimate,
+            covariance: 0.0,
         });
 
         state.step(DT);

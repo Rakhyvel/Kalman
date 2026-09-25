@@ -67,3 +67,73 @@ impl<const N: usize> Filter for RollingAverage<N> {
         self.sum / self.count as f64
     }
 }
+
+pub struct Kalman {
+    x: f64,
+
+    p: f64,
+    g: f64,
+
+    a: f64,
+    gamma: f64,
+    q: f64,
+
+    c: f64,
+    r: f64,
+}
+
+impl Kalman {
+    pub fn new(
+        initial_estimate: f64,
+        initial_covariance: f64,
+        a: f64,
+        gamma: f64,
+        q: f64,
+        c: f64,
+        r: f64,
+    ) -> Self {
+        Self {
+            x: initial_estimate,
+            p: initial_covariance,
+            g: 1.0,
+            a,
+            gamma,
+            q,
+            c,
+            r,
+        }
+    }
+
+    pub fn p(&self) -> f64 {
+        self.p
+    }
+
+    fn predict(&mut self) {
+        // Inflate covariance
+        self.p = self.a * self.p * self.a + self.gamma * self.q * self.gamma;
+
+        // Update kalman gain
+        self.g = self.p * self.c * (1.0 / (self.c * self.p * self.c + self.r));
+    }
+
+    fn correct(&mut self, measurement: f64) {
+        // Reduce covariance in dim of measurement
+        self.p = (1.0 - self.g * self.c) * self.p;
+
+        // Propagate state
+        self.x = self.a * self.x;
+
+        // Update estimate
+        let innovation = measurement - self.c * self.x;
+        self.x = self.x + self.g * innovation;
+    }
+}
+
+impl Filter for Kalman {
+    fn update(&mut self, measurement: f64) -> f64 {
+        self.predict();
+        self.correct(measurement);
+
+        self.x
+    }
+}
