@@ -32,6 +32,6 @@ impl State for Oscillating {
     }
 
     fn state(&self) -> f64 {
-        self.amplitude + (self.angular_frequency * self.t + self.phase).sin()
+        self.amplitude * (self.angular_frequency * self.t + self.phase).sin()
     }
 }

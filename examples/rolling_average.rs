@@ -3,6 +3,7 @@ use kalman::sensor::{GaussianSensor, Sensor};
 use kalman::state::{Oscillating, State};
 
 use kalman::plot::{Sample, SampleLog};
+use nalgebra::SVector;
 
 const STD_DEV: f64 = 0.1;
 const SEED: u64 = 67;
@@ -27,15 +28,15 @@ fn main() {
 
         let truth = state.state();
 
-        let measurement = sensor.measure(&state);
+        let measurement = SVector::<f64, 1>::new(sensor.measure(&state));
 
-        let estimate = filter.update(measurement);
+        let estimate: SVector<f64, 1> = filter.update(measurement);
 
         samples.record(Sample {
             t,
             truth,
-            measurement,
-            estimate,
+            measurement: measurement.x,
+            estimate: estimate.x,
             covariance: 0.0,
         });
 

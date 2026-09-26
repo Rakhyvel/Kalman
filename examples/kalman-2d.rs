@@ -3,19 +3,14 @@ use kalman::sensor::{GaussianSensor, Sensor};
 use kalman::state::{Oscillating, State};
 
 use kalman::plot::{Sample, SampleLog};
+use nalgebra::{SMatrix, SVector};
 
-const STD_DEV: f64 = 0.4;
-const SEED: u64 = 69;
-
-const INITIAL_ESTIMATE: f64 = 1.0;
-const INITIAL_COVARIANCE: f64 = 1.0;
+const STD_DEV: f64 = 0.2;
+const SEED: u64 = 67;
 
 const DT: f64 = 0.1;
 
-const A: f64 = 1.0;
-const GAMMA: f64 = 1.0;
-const Q: f64 = 0.025529;
-const C: f64 = 1.0;
+const Q: f64 = 0.5;
 const R: f64 = STD_DEV * STD_DEV;
 
 fn main() {
@@ -28,7 +23,15 @@ fn main() {
 
     let mut sensor = GaussianSensor::new(STD_DEV, SEED).unwrap();
 
-    let mut filter = Kalman::new(INITIAL_ESTIMATE, INITIAL_COVARIANCE, A, GAMMA, Q, C, R);
+    let mut filter = Kalman::<2, 1, 1>::new(
+        SVector::<f64, 2>::new(0.0, 0.0),
+        SMatrix::<f64, 2, 2>::new(1.0, 0.0, 0.0, 1.0),
+        SMatrix::<f64, 2, 2>::new(1.0, DT, 0.0, 1.0),
+        SMatrix::<f64, 2, 1>::new(0.5 * DT * DT, DT),
+        SMatrix::<f64, 1, 1>::new(Q),
+        SMatrix::<f64, 1, 2>::new(1.0, 0.0),
+        SMatrix::<f64, 1, 1>::new(R),
+    );
 
     let mut samples = SampleLog::new();
 
@@ -37,16 +40,16 @@ fn main() {
         let t = i as f64 * DT;
 
         let truth = state.state();
-        let measurement = sensor.measure(&state);
-        let estimate = filter.update(measurement);
+        let measurement = SVector::<f64, 1>::new(sensor.measure(&state));
+        let estimate: SVector<f64, 2> = filter.update(measurement);
         let covariance = filter.p();
 
         samples.record(Sample {
             t,
             truth,
-            measurement,
-            estimate,
-            covariance,
+            measurement: measurement.x,
+            estimate: estimate.x,
+            covariance: covariance[(0, 0)],
         });
 
         state.step(DT);

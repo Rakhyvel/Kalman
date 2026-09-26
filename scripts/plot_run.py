@@ -51,7 +51,7 @@ def main():
     )
 
     sigma = [p**0.5 for p in covariance]
-    for n, alpha in [(1, 0.2), (2, 0.1), (3, 0.05)]:
+    for n, alpha in [(1, 0.0), (2, 0.0), (3, 0.1)]:
         upper = [x + n * s for x, s in zip(estimate, sigma)]
         lower = [x - n * s for x, s in zip(estimate, sigma)]
         ax.fill_between(
