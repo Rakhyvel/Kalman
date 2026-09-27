@@ -24,7 +24,7 @@ impl SampleLog {
         self.samples.push(sample);
     }
 
-    pub fn rms(&mut self) -> f64 {
+    pub fn rms(&self) -> f64 {
         if self.samples.is_empty() {
             return 0.0;
         }

@@ -1,5 +1,7 @@
 use nalgebra::{SMatrix, SVector};
 
+use crate::{dynamics::Dynamics, measurement::MeasurementModel};
+
 pub trait Filter<const STATE_DIM: usize, const MSR_DIM: usize> {
     /// Take in a new measurement and update the estimate
     fn update(&mut self, measurement: SVector<f64, MSR_DIM>) -> SVector<f64, STATE_DIM>;
@@ -70,79 +72,57 @@ impl<const N: usize> Filter<1, 1> for RollingAverage<N> {
     }
 }
 
-pub struct Kalman<const STATE_DIM: usize, const MSR_DIM: usize, const PROCESS_DIM: usize> {
-    x: SVector<f64, STATE_DIM>,
-
-    p: SMatrix<f64, STATE_DIM, STATE_DIM>,
-
-    a: SMatrix<f64, STATE_DIM, STATE_DIM>,
-    gamma: SMatrix<f64, STATE_DIM, PROCESS_DIM>,
-    q: SMatrix<f64, PROCESS_DIM, PROCESS_DIM>,
-
-    c: SMatrix<f64, MSR_DIM, STATE_DIM>,
-    r: SMatrix<f64, MSR_DIM, MSR_DIM>,
+pub struct Kalman<const N: usize> {
+    x: SVector<f64, N>,
+    p: SMatrix<f64, N, N>,
 }
 
-impl<const STATE_DIM: usize, const MSR_DIM: usize, const PROCESS_DIM: usize>
-    Kalman<STATE_DIM, MSR_DIM, PROCESS_DIM>
-{
-    pub fn new(
-        initial_estimate: SVector<f64, STATE_DIM>,
-        initial_covariance: SMatrix<f64, STATE_DIM, STATE_DIM>,
-        a: SMatrix<f64, STATE_DIM, STATE_DIM>,
-        gamma: SMatrix<f64, STATE_DIM, PROCESS_DIM>,
-        q: SMatrix<f64, PROCESS_DIM, PROCESS_DIM>,
-        c: SMatrix<f64, MSR_DIM, STATE_DIM>,
-        r: SMatrix<f64, MSR_DIM, MSR_DIM>,
-    ) -> Self {
+impl<const N: usize> Kalman<N> {
+    pub fn new(initial_estimate: SVector<f64, N>, initial_covariance: SMatrix<f64, N, N>) -> Self {
         Self {
             x: initial_estimate,
             p: initial_covariance,
-            a,
-            gamma,
-            q,
-            c,
-            r,
         }
     }
 
-    pub fn p(&self) -> SMatrix<f64, STATE_DIM, STATE_DIM> {
+    pub fn x(&self) -> SVector<f64, N> {
+        self.x
+    }
+
+    pub fn p(&self) -> SMatrix<f64, N, N> {
         self.p
     }
 
-    fn predict(&mut self) {
+    pub fn predict(&mut self, dynamics: &impl Dynamics<N>, dt: f64) {
+        let (stm, q) = dynamics.discretize(dt);
+
         // Inflate covariance
-        self.p =
-            self.a * self.p * self.a.transpose() + self.gamma * self.q * self.gamma.transpose();
+        self.p = stm * self.p * stm.transpose() + q;
 
         // Propagate state
-        self.x = self.a * self.x;
+        self.x = stm * self.x;
     }
 
-    fn correct(&mut self, z: SVector<f64, MSR_DIM>) {
+    pub fn correct<const M: usize>(
+        &mut self,
+        meas: &impl MeasurementModel<N, M>,
+        z: SVector<f64, M>,
+    ) {
+        let c = meas.measurement_matrix();
+        let r = meas.noise_covariance();
+
         // Update kalman gain
         let gain = self.p
-            * self.c.transpose()
-            * (self.c * self.p * self.c.transpose() + self.r)
+            * c.transpose()
+            * (c * self.p * c.transpose() + r)
                 .try_inverse() // TODO: cholesky decomp (ch. 7)
                 .unwrap();
 
         // Reduce covariance in dim of measurement
-        self.p = (SMatrix::identity() - gain * self.c) * self.p; // TODO: replace with Joseph normal form (ch. 6)
+        self.p = (SMatrix::identity() - gain * c) * self.p; // TODO: replace with Joseph normal form (ch. 6)
 
         // Update estimate
-        let innovation = z - self.c * self.x;
+        let innovation = z - c * self.x;
         self.x = self.x + gain * innovation;
-    }
-}
-
-impl<const STATE_DIM: usize, const MSR_DIM: usize, const PROCESS_DIM: usize>
-    Filter<STATE_DIM, MSR_DIM> for Kalman<STATE_DIM, MSR_DIM, PROCESS_DIM>
-{
-    fn update(&mut self, z: SVector<f64, MSR_DIM>) -> SVector<f64, STATE_DIM> {
-        self.predict();
-        self.correct(z);
-
-        self.x
     }
 }
